@@ -1,0 +1,16 @@
+# https://github.com/base2Services/quarkus-lambda-container-demo
+# (1)
+FROM public.ecr.aws/lambda/java:11
+
+ARG APP_NAME=unisameteo
+ARG APP_VERSION=1.0-SNAPSHOT
+
+# needed for java.awt package
+RUN yum -y install java-11-amazon-corretto-headless
+
+# (2) Copies artifacts into /function directory
+ADD target/${APP_NAME}-${APP_VERSION}-runner.jar /var/task/lib/${APP_NAME}.jar
+ADD target/lib/  /var/task/lib/
+
+# (3) Setting the command to the Quarkus lambda handler
+CMD ["io.quarkus.amazon.lambda.runtime.QuarkusStreamHandler::handleRequest"]

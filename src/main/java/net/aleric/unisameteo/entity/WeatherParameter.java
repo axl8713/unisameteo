@@ -1,0 +1,16 @@
+package net.aleric.unisameteo.entity;
+
+public enum WeatherParameter {
+
+    ACTUAL_TEMPERATURE,
+    MAX_TEMPERATURE,
+    MIN_TEMPERATURE,
+    ATMOSPHERIC_PRESSURE,
+    RELATIVE_AIR_HUMIDITY,
+    ACTUAL_WIND_SPEED,
+    MAX_WIND_SPEED,
+    WIND_DIRECTION,
+    RAINFALL_SINCE_MIDNIGHT,
+    SOLAR_RADIATION;
+
+}
