@@ -36,31 +36,12 @@ public class CurrentConditionsService {
         try {
             LOG.debugf("retrieving data from %s station", station);
 
-            StationObservation observation = new StationObservation(station);
-
             WebClient webClient = new WebClient(BrowserVersion.CHROME);
             webClient.getOptions().setThrowExceptionOnScriptError(false);
             webClient.getOptions().setCssEnabled(false);
             webClient.setScriptPreProcessor(CurrentConditionsService::avoidStationDataAutoLoadPreProcessor);
-            new WebConnectionWrapper(webClient) {
 
-                @Override
-                public WebResponse getResponse(final WebRequest request) throws IOException {
-
-                    LOG.tracef("request: %s", request.getUrl().toExternalForm());
-
-                    WebResponse response = super.getResponse(request);
-
-                    if (request.getUrl().toExternalForm().contains(station.id())) {
-                        Document stationHtmlData = parseWeatherDataResponse(response);
-                        observation.setData(scrapeWeatherData(stationHtmlData));
-                        observation.setTime(scrapeWeatherTime(stationHtmlData));
-                        observation.setWebcamUrl(UNISA_WEBPAGE + "/" + scrapeWebcamImageUrl(stationHtmlData));
-                    }
-
-                    return response;
-                }
-            };
+            StationObservation observation = wrapConnectionToScrapeObservationData(webClient, station);
 
             HtmlPage page = webClient.getPage(UNISA_WEBPAGE + "/servizi-on-line/stazione-meteo");
 
@@ -72,6 +53,44 @@ public class CurrentConditionsService {
         } catch (Exception ex) {
             throw new IllegalStateException("Error in scraping actual conditions", ex);
         }
+    }
+
+    private static String avoidStationDataAutoLoadPreProcessor(HtmlPage htmlPage, String sourceCode, String sourceName, int lineNumber, HtmlElement htmlElement) {
+
+        if (sourceName.contains("meteo.js")) {
+            List<String> meteoJSCode = sourceCode.lines().collect(Collectors.toList());
+            meteoJSCode.remove(6);
+            return String.join("\n", meteoJSCode);
+        }
+
+        return sourceCode;
+    }
+
+    private StationObservation wrapConnectionToScrapeObservationData(WebClient webClient, Station station) {
+
+        StationObservation observation = new StationObservation(station);
+
+        new WebConnectionWrapper(webClient) {
+
+            @Override
+            public WebResponse getResponse(final WebRequest request) throws IOException {
+
+                LOG.tracef("request: %s", request.getUrl().toExternalForm());
+
+                WebResponse response = super.getResponse(request);
+
+                if (request.getUrl().toExternalForm().contains(station.id())) {
+                    Document stationHtmlData = parseWeatherDataResponse(response);
+                    observation.setData(scrapeWeatherData(stationHtmlData));
+                    observation.setTime(scrapeWeatherTime(stationHtmlData));
+                    observation.setWebcamUrl(UNISA_WEBPAGE + "/" + scrapeWebcamImageUrl(stationHtmlData));
+                }
+
+                return response;
+            }
+        };
+
+        return observation;
     }
 
     private Document parseWeatherDataResponse(WebResponse response) {
@@ -117,16 +136,5 @@ public class CurrentConditionsService {
         return stationHtmlData.getElementsByTag("img")
                 .get(0)
                 .attr("src");
-    }
-
-    private static String avoidStationDataAutoLoadPreProcessor(HtmlPage htmlPage, String sourceCode, String sourceName, int lineNumber, HtmlElement htmlElement) {
-
-        if (sourceName.contains("meteo.js")) {
-            List<String> meteoJSCode = sourceCode.lines().collect(Collectors.toList());
-            meteoJSCode.remove(6);
-            return String.join("\n", meteoJSCode);
-        }
-
-        return sourceCode;
     }
 }
